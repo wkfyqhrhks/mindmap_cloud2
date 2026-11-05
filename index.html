@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>생각 쑥쑥 마인드맵</title>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      font-family: 'Jua', sans-serif;
+    }
+    html, body {
+      background-color: #FAF9F6;
+      color: #2D3748;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      position: fixed;
+    }
+
+    /* 1. 슬림 헤더 (태블릿/모바일 가로 스크롤 완전 지원) */
+    header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 64px;
+      background: #FFFFFF;
+      border-bottom: 2.5px solid #E2E8F0;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 16px;
+      gap: 12px;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
+      white-space: nowrap;
+    }
+    header::-webkit-scrollbar {
+      height: 4px;
+    }
+    header::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 4px;
+    }
+
+    .h-left, .h-center, .h-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .app-title {
+      font-size: 20px;
+      color: #3182CE;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .btn-topic {
+      background: #FEFCBF;
+      color: #B7791F;
+      border: 2px solid #ECC94B;
+      padding: 5px 12px;
+      font-size: 15px;
+      border-radius: 18px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      touch-action: manipulation;
+    }
+
+    .mode-wrap {
+      background: #EDF2F7;
+      padding: 3px 6px;
+      border-radius: 20px;
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .mode-btn {
+      border: none;
+      background: transparent;
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-size: 15px;
+      cursor: pointer;
+      color: #4A5568;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      touch-action: manipulation;
+    }
+    .mode-btn.active-node {
+      background: #10B981;
+      color: white;
+      box-shadow: 0 2px 0 #059669;
+    }
+    .mode-btn.active-pen {
+      background: #2563EB;
+      color: white;
+      box-shadow: 0 2px 0 #1D4ED8;
+    }
+
+    .zoom-dock {
+      background: #EDF2F7;
+      border: 1.5px solid #CBD5E1;
+      border-radius: 20px;
+      padding: 2px 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .z-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 14px;
+      border: none;
+      background: #FFFFFF;
+      color: #2B6CB0;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+    }
+    .z-lbl {
+      font-size: 14px;
+      color: #2D3748;
+      min-width: 40px;
+      text-align: center;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .act-btn {
+      border: none;
+      padding: 6px 13px;
+      border-radius: 16px;
+      font-size: 15px;
+      cursor: pointer;
+      color: white;
+      white-space: nowrap;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.15);
+      flex-shrink: 0;
+      touch-action: manipulation;
+    }
+    .btn-qr { background: #805AD5; box-shadow: 0 2px 0 #6B46C1; }
+    .btn-erase-all { background: #E53E3E; box-shadow: 0 2px 0 #C53030; }
+    .btn-print { background: #38A169; box-shadow: 0 2px 0 #2F855A; }
+    .btn-save  { background: #3182CE; box-shadow: 0 2px 0 #2B6CB0; }
+
+    /* 2. 접이식 생각 질문 바 */
+    .q-banner-wrap {
+      position: absolute;
+      top: 72px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 90;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 90vw;
+    }
+    .q-banner {
+      background: #FEFCBF;
+      border: 2.5px solid #ECC94B;
+      border-radius: 30px;
+      padding: 6px 18px;
+      font-size: 16px;
+      color: #744210;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      text-align: center;
+    }
+    .q-banner.hidden { display: none; }
+    .btn-next-q {
+      background: #D69E2E;
+      color: white;
+      border: none;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      touch-action: manipulation;
+    }
+    .btn-tog-q {
+      background: #FFFBEB;
+      border: 1px solid #FDE68A;
+      border-radius: 10px;
+      padding: 2px 8px;
+      font-size: 12px;
+      color: #92400E;
+      cursor: pointer;
+      margin-top: 3px;
+      touch-action: manipulation;
+    }
+
+    /* 3. 모눈 캔버스 작업 공간 */
+    #workspace {
+      position: absolute;
+      top: 64px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      overflow: hidden;
+      background-image: radial-gradient(#CBD5E1 1.3px, transparent 1.3px);
+      background-size: 26px 26px;
+    }
+    #world {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4000px;
+      height: 3000px;
+      transform-origin: 0 0;
+    }
+
+    #branch-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4000px;
+      height: 3000px;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    #nodes-box {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4000px;
+      height: 3000px;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4000px;
+      height: 3000px;
+      z-index: 30;
+      pointer-events: none;
+    }
+    #canvas.pen-on {
+      pointer-events: auto;
+      cursor: crosshair;
+    }
+
+    /* 4. 마인드맵 노드 */
+    .node {
+      position: absolute;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 24px;
+      border-radius: 36px;
+      background: #FFFFFF;
+      box-shadow: 0 5px 14px rgba(0,0,0,0.06);
+      border: 3.5px solid #94A3B8;
+      cursor: grab;
+      pointer-events: auto;
+      transform: translate(-50%, -50%);
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .node.root {
+      padding: 18px 36px;
+      background: #FEFCBF;
+      border: 4.5px solid #DD6B20;
+      border-radius: 44px;
+      box-shadow: 0 6px 18px rgba(221, 107, 32, 0.2);
+    }
+    .node-input {
+      font-size: 22px;
+      color: #2D3748;
+      outline: none;
+      min-width: 36px;
+      text-align: center;
+      white-space: pre-wrap;
+      word-break: keep-all;
+      touch-action: auto;
+    }
+    .node.root .node-input {
+      font-size: 28px;
+      color: #7B341E;
+    }
+    .btn-add {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      background: #10B981;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      border: 2.5px solid white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      cursor: pointer;
+      bottom: -10px;
+      right: -8px;
+    }
+    .btn-del {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: #EF4444;
+      color: white;
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      border: 2px solid white;
+      cursor: pointer;
+      top: -6px;
+      right: -6px;
+    }
+    .node:hover .btn-del, .node:active .btn-del { display: flex; }
+
+    .node-badge {
+      position: absolute;
+      top: -12px;
+      left: -8px;
+      background: #EF4444;
+      color: white;
+      font-size: 13px;
+      font-weight: bold;
+      padding: 2px 8px;
+      border-radius: 12px;
+      border: 2px solid white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    /* 5. 알약형 손그림 툴바 */
+    .pen-capsule-bar {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #FFFFFF;
+      border: 4px solid #3182CE;
+      border-radius: 50px;
+      padding: 8px 24px;
+      display: none;
+      align-items: center;
+      gap: 14px;
+      z-index: 95;
+      box-shadow: 0 6px 20px rgba(49, 130, 206, 0.2);
+      max-width: 95vw;
+      overflow-x: auto;
+      touch-action: pan-x;
+    }
+    .pen-capsule-bar.show { display: flex; }
+    .pill-group { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .group-label { font-size: 16px; color: #2D3748; white-space: nowrap; }
+
+    .btn-tool-pen {
+      border: none;
+      background: #2563EB;
+      color: white;
+      padding: 6px 14px;
+      border-radius: 14px;
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-tool-pen.active { outline: 3px solid #1D4ED8; }
+
+    .btn-tool-eraser {
+      border: none;
+      background: #F1F5F9;
+      color: #1E293B;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.1;
+      width: 40px;
+      height: 54px;
+      letter-spacing: 1.5px;
+      border: 1px solid #CBD5E1;
+    }
+    .btn-tool-eraser.active {
+      background: #E2E8F0;
+      border: 2px solid #2563EB;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .color-dots-wrap {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      overflow-x: auto;
+      padding: 2px 4px;
+    }
+    .c-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2.5px solid white;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+      flex-shrink: 0;
+      transition: transform 0.1s;
+    }
+    .c-dot.active {
+      transform: scale(1.22);
+      border-color: #1E293B;
+    }
+
+    .btn-w {
+      border: none;
+      background: #F1F5F9;
+      color: #334155;
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .btn-w.active {
+      background: #FEFCBF;
+      color: #744210;
+      border: 2px solid #ECC94B;
+      font-weight: bold;
+    }
+
+    .toast-msg {
+      position: absolute;
+      top: 76px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.9);
+      color: #FFFFFF;
+      padding: 8px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    .toast-msg.show { opacity: 1; }
+
+    /* 6. 모달 팝업 */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.65);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-card {
+      background: white;
+      padding: 24px;
+      border-radius: 28px;
+      border: 4px solid #805AD5;
+      text-align: center;
+      max-width: 90vw;
+      width: 380px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+    .modal-title { font-size: 24px; color: #6B46C1; margin-bottom: 6px; }
+    .modal-desc { font-size: 14px; color: #4A5568; margin-bottom: 12px; word-break: keep-all; }
+    
+    #qrcode-canvas-box {
+      display: flex;
+      justify-content: center;
+      margin: 8px 0;
+    }
+    #qrcode-canvas-box img {
+      border: 8px solid white;
+      border-radius: 16px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+      width: 200px;
+      height: 200px;
+    }
+
+    .pin-box {
+      background: #F7FAFC;
+      border: 2px dashed #805AD5;
+      border-radius: 14px;
+      padding: 8px 12px;
+      margin-top: 10px;
+      font-size: 14px;
+      color: #4A5568;
+    }
+    .pin-code {
+      font-size: 24px;
+      color: #805AD5;
+      font-weight: bold;
+      letter-spacing: 2px;
+    }
+
+    .btn-copy-link {
+      background: #EBF8FF;
+      border: 2px solid #63B3ED;
+      color: #2B6CB0;
+      padding: 9px 16px;
+      border-radius: 16px;
+      font-size: 15px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+      touch-action: manipulation;
+    }
+    .btn-close-modal {
+      background: #CBD5E1;
+      border: none;
+      padding: 8px 24px;
+      font-size: 15px;
+      border-radius: 16px;
+      color: #334155;
+      cursor: pointer;
+      margin-top: 12px;
+      touch-action: manipulation;
+    }
+
+    /* 7. 학생 참여 화면 */
+    #student-view {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: #FEFCBF;
+      z-index: 3000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .student-card {
+      background: white;
+      border: 4px solid #DD6B20;
+      border-radius: 32px;
+      padding: 24px 20px;
+      width: 100%;
+      max-width: 440px;
+      max-height: 94vh;
+      display: flex;
+      flex-direction: column;
+      text-align: center;
+      box-shadow: 0 10px 20px rgba(221, 107, 32, 0.2);
+    }
+    .student-title { font-size: 23px; color: #7B341E; margin-bottom: 4px; }
+    .student-sub { font-size: 14px; color: #718096; margin-bottom: 12px; }
+    
+    .target-select-label {
+      font-size: 15px;
+      color: #2D3748;
+      text-align: left;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+    
+    .branch-list-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      max-height: 38vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      padding: 4px;
+      border-radius: 16px;
+      background: #F8FAFC;
+      border: 1.5px solid #E2E8F0;
+    }
+    .branch-chip {
+      background: #FFFFFF;
+      border: 2px solid #CBD5E1;
+      color: #4A5568;
+      padding: 9px 14px;
+      border-radius: 18px;
+      font-size: 15px;
+      cursor: pointer;
+      flex: 1 1 calc(50% - 8px);
+      min-width: 120px;
+      text-align: center;
+      transition: all 0.15s ease;
+      touch-action: manipulation;
+    }
+    .branch-chip.full-width {
+      flex: 1 1 100%;
+    }
+    .branch-chip.selected {
+      background: #FEFCBF;
+      border-color: #DD6B20;
+      color: #9C4221;
+      font-weight: bold;
+      transform: scale(1.02);
+      box-shadow: 0 2px 6px rgba(221, 107, 32, 0.2);
+    }
+
+    .student-input {
+      width: 100%;
+      height: 52px;
+      border-radius: 18px;
+      border: 3px solid #CBD5E1;
+      padding: 0 16px;
+      font-size: 20px;
+      text-align: center;
+      outline: none;
+      color: #2D3748;
+      margin-bottom: 10px;
+      touch-action: auto;
+    }
+    .student-input:focus { border-color: #3182CE; }
+    .btn-send {
+      width: 100%;
+      height: 52px;
+      background: #10B981;
+      border: none;
+      border-radius: 18px;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #059669;
+      touch-action: manipulation;
+    }
+    .btn-send:active { transform: translateY(3px); box-shadow: none; }
+  </style>
+</head>
+<body>
+
+  <!-- 메인 보드 헤더: 좌우 스크롤 스와이프 가능 -->
+  <header id="main-header">
+    <div class="h-left">
+      <div class="app-title">🌱 생각 쑥쑥 마인드맵</div>
+      <button class="btn-topic" onclick="changeTopic()">✏️ 중심 생각 바꾸기</button>
+    </div>
+
+    <div class="h-center">
+      <div class="mode-wrap">
+        <button class="mode-btn active-node" id="btn-mode-node" onclick="setAppMode('node')">🖐️ 가지 뻗고 글쓰기</button>
+        <button class="mode-btn" id="btn-mode-pen" onclick="setAppMode('pen')">✏️ 손그림 펜</button>
+      </div>
+    </div>
+
+    <div class="h-right">
+      <div class="zoom-dock">
+        <button class="z-btn" onclick="zoom(-0.15)">-</button>
+        <span class="z-lbl" id="z-lbl" onclick="resetZ()" title="클릭하면 100% 원래대로">100%</span>
+        <button class="z-btn" onclick="zoom(0.15)">+</button>
+      </div>
+      <button class="act-btn btn-qr" onclick="openQRModal()">📡 학생 참여 QR/코드</button>
+      <button class="act-btn btn-erase-all" id="btn-clear-draw">🧽 손그림 전체 지우기</button>
+      <button class="act-btn btn-print" onclick="window.print()">🖨️ 인쇄</button>
+      <button class="act-btn btn-save" onclick="savePNG()">💾 저장</button>
+    </div>
+  </header>
+
+  <!-- 접이식 생각 질문 바 -->
+  <div class="q-banner-wrap" id="q-wrap">
+    <div class="q-banner" id="q-banner">
+      <span>💬</span>
+      <span id="q-text">무엇이든 떠오르는 생각을 자유롭게 펼쳐보세요!</span>
+      <button class="btn-next-q" onclick="nextQ()">다른 생각 열기 ➔</button>
+    </div>
+    <button class="btn-tog-q" id="btn-tog-q" onclick="toggleQ()">질문 창 접기 ▲</button>
+  </div>
+
+  <!-- 메인 작업 공간 -->
+  <div id="workspace">
+    <div id="world">
+      <svg id="branch-svg"></svg>
+      <div id="nodes-box"></div>
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- 알약형 손그림 툴바 -->
+  <div class="pen-capsule-bar" id="pen-bar">
+    <div class="pill-group">
+      <span class="group-label">도 구 :</span>
+      <button class="btn-tool-pen active" id="tool-pen" onclick="selectPen()">✏️ 펜</button>
+      <button class="btn-tool-eraser" id="tool-eraser" onclick="selectEraser()">
+        <span>💊</span>
+        <span style="writing-mode: vertical-rl; font-size:11px;">부분지우개</span>
+      </button>
+    </div>
+
+    <div class="pill-group" style="margin-left: 4px;">
+      <span class="group-label">펜 색 :</span>
+      <div class="color-dots-wrap">
+        <div class="c-dot active" style="background:#E53E3E;" onclick="setColor('#E53E3E', this)"></div>
+        <div class="c-dot" style="background:#EC4899;" onclick="setColor('#EC4899', this)"></div>
+        <div class="c-dot" style="background:#ED8936;" onclick="setColor('#ED8936', this)"></div>
+        <div class="c-dot" style="background:#ECC94B;" onclick="setColor('#ECC94B', this)"></div>
+        <div class="c-dot" style="background:#84CC16;" onclick="setColor('#84CC16', this)"></div>
+        <div class="c-dot" style="background:#38A169;" onclick="setColor('#38A169', this)"></div>
+        <div class="c-dot" style="background:#06B6D4;" onclick="setColor('#06B6D4', this)"></div>
+        <div class="c-dot" style="background:#3182CE;" onclick="setColor('#3182CE', this)"></div>
+        <div class="c-dot" style="background:#805AD5;" onclick="setColor('#805AD5', this)"></div>
+        <div class="c-dot" style="background:#78350F;" onclick="setColor('#78350F', this)"></div>
+        <div class="c-dot" style="background:#2D3748;" onclick="setColor('#2D3748', this)"></div>
+      </div>
+    </div>
+
+    <div class="pill-group" style="margin-left: 4px;">
+      <span class="group-label">굵 기 :</span>
+      <button class="btn-w" id="w-normal" onclick="setWidth(4, this)">보 통</button>
+      <button class="btn-w active" id="w-thick" onclick="setWidth(10, this)">두 껍 게</button>
+    </div>
+  </div>
+
+  <div class="toast-msg" id="toast-msg">✨ 안내 메시지</div>
+
+  <!-- QR 코드 & 방 코드 모달 -->
+  <div class="modal-overlay" id="qr-modal">
+    <div class="modal-card">
+      <div class="modal-title">📡 우리 반 생각 모으기</div>
+      <div class="modal-desc">태블릿 카메라로 QR 코드를 비추면<br>바로 접속 창이 열립니다!</div>
+      
+      <div id="qrcode-canvas-box"></div>
+
+      <div class="pin-box">
+        카메라가 안 될 때는 아래 링크를 복사하세요<br>
+        방 참여 번호: <span class="pin-code" id="pin-display">------</span>
+      </div>
+
+      <button class="btn-copy-link" onclick="copyStudentLink()">🔗 학생 참여 웹 주소 복사하기</button>
+      <button class="btn-close-modal" onclick="closeQRModal()">닫기</button>
+    </div>
+  </div>
+
+  <!-- 학생 참여 전용 뷰 -->
+  <div id="student-view">
+    <div class="student-card">
+      <div class="student-title">🌱 나의 생각 뻗기</div>
+      <div class="student-sub" id="st-status-msg">어떤 가지에 내 생각을 달아볼까요?</div>
+
+      <div class="target-select-label">1단계: 연결할 가지 선택하기</div>
+      <div class="branch-list-wrap" id="st-branch-list"></div>
+
+      <div class="target-select-label">2단계: 떠오르는 단어 입력하기</div>
+      <input type="text" class="student-input" id="st-word-input" placeholder="여기에 낱말을 적어요" maxlength="15">
+      <button class="btn-send" onclick="sendStudentWord()">생각 날리기 🚀</button>
+    </div>
+  </div>
+
+  <script>
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+        if (w < 2 * r) r = w / 2;
+        if (h < 2 * r) r = h / 2;
+        this.beginPath();
+        this.moveTo(x + r, y);
+        this.arcTo(x + w, y, x + w, y + h, r);
+        this.arcTo(x + w, y + h, x, y + h, r);
+        this.arcTo(x, y + h, x, y, r);
+        this.arcTo(x, y, x + w, y, r);
+        this.closePath();
+        return this;
+      };
+    }
+
+    const questions = [
+      '무엇이든 떠오르는 생각을 자유롭게 펼쳐보세요!',
+      '우리 지역의 자랑거리나 명소는 어디가 있을까요?',
+      '그곳을 지키거나 돕기 위해 필요한 것은 무엇일까요?',
+      '로봇이나 AI가 함께한다면 어떤 일을 할 수 있을까요?',
+      '우리가 다 같이 힘을 모을 수 있는 방법은 무엇일까요?'
+    ];
+    let qIdx = 0;
+    function nextQ() {
+      qIdx = (qIdx + 1) % questions.length;
+      document.getElementById('q-text').textContent = questions[qIdx];
+    }
+    function toggleQ() {
+      const b = document.getElementById('q-banner');
+      const t = document.getElementById('btn-tog-q');
+      const isHidden = b.classList.toggle('hidden');
+      t.textContent = isHidden ? '생각 질문 열기 ▼' : '질문 창 접기 ▲';
+    }
+
+    const themes = [
+      { fill: '#F0FFF4', border: '#38A169', text: '#22543D' },
+      { fill: '#FFFAF0', border: '#ED8936', text: '#7B341E' },
+      { fill: '#EBF8FF', border: '#3182CE', text: '#2A4365' },
+      { fill: '#FAF5FF', border: '#805AD5', text: '#44337A' },
+      { fill: '#FFF5F5', border: '#E53E3E', text: '#9B2C2C' }
+    ];
+
+    let nodes = [];
+    let isPenMode = false;
+    let isEraser = false;
+    let penColor = '#E53E3E';
+    let penWidth = 10;
+    let isDrawing = false;
+
+    let zoomScale = 1.0;
+    let panX = 0;
+    let panY = 0;
+
+    // 💡 생성된 방 ID 저장 변수 (초기 오류 방지)
+    let generatedRoomId = '';
+
+    const ws = document.getElementById('workspace');
+    const world = document.getElementById('world');
+    const cvs = document.getElementById('canvas');
+    const ctx = cvs.getContext('2d');
+    const svgElem = document.getElementById('branch-svg');
+
+    function updateTransform() {
+      world.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + zoomScale + ')';
+      document.getElementById('z-lbl').textContent = Math.round(zoomScale * 100) + '%';
+    }
+    function zoom(d) {
+      zoomScale = Math.min(Math.max(0.4, zoomScale + d), 2.2);
+      updateTransform();
+    }
+    function resetZ() {
+      zoomScale = 1.0;
+      panX = (ws.clientWidth / 2) - 2000;
+      panY = (ws.clientHeight / 2) - 1500;
+      updateTransform();
+    }
+
+    function setAppMode(m) {
+      isPenMode = (m === 'pen');
+      document.getElementById('btn-mode-node').className = isPenMode ? 'mode-btn' : 'mode-btn active-node';
+      document.getElementById('btn-mode-pen').className = isPenMode ? 'mode-btn active-pen' : 'mode-btn';
+      cvs.classList.toggle('pen-on', isPenMode);
+      document.getElementById('pen-bar').classList.toggle('show', isPenMode);
+    }
+
+    function selectPen() {
+      isEraser = false;
+      ctx.globalCompositeOperation = 'source-over';
+      document.getElementById('tool-pen').classList.add('active');
+      document.getElementById('tool-eraser').classList.remove('active');
+    }
+    function selectEraser() {
+      isEraser = true;
+      ctx.globalCompositeOperation = 'destination-out';
+      document.getElementById('tool-eraser').classList.add('active');
+      document.getElementById('tool-pen').classList.remove('active');
+    }
+    function setColor(c, el) {
+      penColor = c;
+      selectPen();
+      document.querySelectorAll('.c-dot').forEach(d => d.classList.remove('active'));
+      el.classList.add('active');
+    }
+    function setWidth(w, el) {
+      penWidth = w;
+      document.querySelectorAll('.btn-w').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast-msg');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 1600);
+    }
+
+    function clearDraw() {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, cvs.width, cvs.height);
+      cvs.width = cvs.width;
+      ctx.restore();
+
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      if (isEraser) ctx.globalCompositeOperation = 'destination-out';
+      showToast('✨ 손그림이 모두 깨끗하게 지워졌어요!');
+    }
+
+    const clearBtn = document.getElementById('btn-clear-draw');
+    clearBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      clearDraw();
+    });
+
+    // 태블릿 핀치 줌 & 팬
+    let touchMode = 'NONE';
+    let initDistance = 0;
+    let initScale = 1.0;
+    let initCenter = { x: 0, y: 0 };
+    let initPan = { x: 0, y: 0 };
+    let panStart = { x: 0, y: 0 };
+
+    function getDistance(t1, t2) {
+      return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    }
+    function getCenter(t1, t2) {
+      return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+    }
+
+    function getCanvasCoords(clientX, clientY) {
+      const r = ws.getBoundingClientRect();
+      return {
+        x: (clientX - r.left - panX) / zoomScale,
+        y: (clientY - r.top - panY) / zoomScale
+      };
+    }
+
+    ws.addEventListener('touchstart', (e) => {
+      if (e.target.closest('.node') || e.target.closest('#pen-bar')) return;
+
+      if (e.touches.length === 2) {
+        touchMode = 'PINCH';
+        isDrawing = false;
+        ctx.closePath();
+        initDistance = getDistance(e.touches[0], e.touches[1]);
+        initScale = zoomScale;
+        initCenter = getCenter(e.touches[0], e.touches[1]);
+        initPan = { x: panX, y: panY };
+        e.preventDefault();
+      } else if (e.touches.length === 1) {
+        if (isPenMode) {
+          touchMode = 'DRAW';
+          isDrawing = true;
+          const coords = getCanvasCoords(e.touches[0].clientX, e.touches[0].clientY);
+          ctx.beginPath();
+          ctx.moveTo(coords.x, coords.y);
+        } else {
+          touchMode = 'PAN';
+          panStart = { x: e.touches[0].clientX - panX, y: e.touches[0].clientY - panY };
+        }
+      }
+    }, { passive: false });
+
+    ws.addEventListener('touchmove', (e) => {
+      if (touchMode === 'PINCH' && e.touches.length === 2) {
+        e.preventDefault();
+        const currentDist = getDistance(e.touches[0], e.touches[1]);
+        const currentCenter = getCenter(e.touches[0], e.touches[1]);
+
+        if (initDistance > 10) {
+          const factor = currentDist / initDistance;
+          const targetScale = Math.min(Math.max(0.4, initScale * factor), 2.2);
+
+          const r = ws.getBoundingClientRect();
+          const focusX = initCenter.x - r.left;
+          const focusY = initCenter.y - r.top;
+
+          panX = focusX - (focusX - initPan.x) * (targetScale / initScale) + (currentCenter.x - initCenter.x);
+          panY = focusY - (focusY - initPan.y) * (targetScale / initScale) + (currentCenter.y - initCenter.y);
+          zoomScale = targetScale;
+          updateTransform();
+        }
+      } else if (touchMode === 'DRAW' && isDrawing && e.touches.length === 1) {
+        e.preventDefault();
+        const coords = getCanvasCoords(e.touches[0].clientX, e.touches[0].clientY);
+        ctx.strokeStyle = isEraser ? 'rgba(0,0,0,1)' : penColor;
+        ctx.lineWidth = isEraser ? 26 : penWidth;
+        ctx.lineTo(coords.x, coords.y);
+        ctx.stroke();
+      } else if (touchMode === 'PAN' && e.touches.length === 1) {
+        e.preventDefault();
+        panX = e.touches[0].clientX - panStart.x;
+        panY = e.touches[0].clientY - panStart.y;
+        updateTransform();
+      }
+    }, { passive: false });
+
+    ws.addEventListener('touchend', (e) => {
+      if (touchMode === 'DRAW' && isDrawing) {
+        ctx.closePath();
+        isDrawing = false;
+      }
+      if (e.touches.length === 0) touchMode = 'NONE';
+    });
+
+    let isMouseDown = false;
+    ws.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.node') || e.target.closest('#pen-bar')) return;
+      if (isPenMode && e.button === 0) {
+        isDrawing = true;
+        const coords = getCanvasCoords(e.clientX, e.clientY);
+        ctx.beginPath();
+        ctx.moveTo(coords.x, coords.y);
+      } else if (!isPenMode && e.button === 0) {
+        isMouseDown = true;
+        panStart = { x: e.clientX - panX, y: e.clientY - panY };
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (isPenMode && isDrawing) {
+        const coords = getCanvasCoords(e.clientX, e.clientY);
+        ctx.strokeStyle = isEraser ? 'rgba(0,0,0,1)' : penColor;
+        ctx.lineWidth = isEraser ? 26 : penWidth;
+        ctx.lineTo(coords.x, coords.y);
+        ctx.stroke();
+      } else if (isMouseDown) {
+        panX = e.clientX - panStart.x;
+        panY = e.clientY - panStart.y;
+        updateTransform();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDrawing) { ctx.closePath(); isDrawing = false; }
+      isMouseDown = false;
+    });
+
+    ws.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      zoom(e.deltaY < 0 ? 0.1 : -0.1);
+    }, { passive: false });
+
+    // ==========================================
+    // 마인드맵 로직
+    // ==========================================
+    function drawLines() {
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      svgElem.innerHTML = '';
+
+      nodes.forEach(n => {
+        if (n.parentId) {
+          const p = nodes.find(x => x.id === n.parentId);
+          if (p) {
+            const col = n.theme ? n.theme.border : '#94A3B8';
+            const dx = n.x - p.x;
+            const dy = n.y - p.y;
+            const cx1 = p.x + dx * 0.45;
+            const cy1 = p.y + dy * 0.05;
+            const cx2 = p.x + dx * 0.55;
+            const cy2 = n.y - dy * 0.05;
+
+            const path = document.createElementNS(SVG_NS, 'path');
+            path.setAttribute('d', `M ${p.x} ${p.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${n.x} ${n.y}`);
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke', col);
+            path.setAttribute('stroke-width', '7');
+            path.setAttribute('stroke-linecap', 'round');
+
+            svgElem.appendChild(path);
+          }
+        }
+      });
+    }
+
+    function initMap(topic) {
+      nodes = [{ id: 'root', parentId: null, text: topic, x: 2000, y: 1500, theme: null, isRoot: true, count: 1 }];
+      render();
+      resetZ();
+      setTimeout(drawLines, 30);
+      broadcastBranchList();
+    }
+
+    function addNode(pId, text, px, py, thm) {
+      const p = nodes.find(n => n.id === pId);
+      if (!p) return;
+      const id = 'n_' + Date.now() + '_' + Math.floor(Math.random() * 100);
+      const ang = Math.random() * Math.PI * 2;
+      const x = px !== undefined ? px : p.x + Math.cos(ang) * 190;
+      const y = py !== undefined ? py : p.y + Math.sin(ang) * 190;
+      const t = thm || (p.isRoot ? themes[nodes.filter(n => n.parentId === 'root').length % themes.length] : p.theme);
+      const node = { id, parentId: pId, text: text || '새로운 생각', x, y, theme: t, isRoot: false, count: 1 };
+      nodes.push(node);
+      render();
+      
+      drawLines();
+      setTimeout(drawLines, 16);
+
+      broadcastBranchList();
+      return node;
+    }
+
+    function handleIncomingWord(targetParentId, word) {
+      const clean = word.trim();
+      if (!clean) return;
+
+      const rootNode = nodes.find(n => n.isRoot);
+      let parentNode = nodes.find(n => n.id === targetParentId);
+      
+      if (!parentNode || targetParentId === 'NEW_ROOT') {
+        parentNode = rootNode;
+      }
+      if (!parentNode) return;
+
+      const existing = nodes.find(n => n.parentId === parentNode.id && n.text.toLowerCase() === clean.toLowerCase());
+
+      if (existing) {
+        existing.count = (existing.count || 1) + 1;
+        showToast(`🎉 [${parentNode.text}]에 "${clean}" 생각이 또 나왔어요! (×${existing.count})`);
+        render();
+        drawLines();
+      } else {
+        const siblings = nodes.filter(n => n.parentId === parentNode.id);
+        const count = siblings.length;
+        
+        let baseAngle = Math.atan2(parentNode.y - 1500, parentNode.x - 2000);
+        if (parentNode.isRoot) {
+          baseAngle = count * 1.15;
+        } else {
+          baseAngle = baseAngle + (count - 1) * 0.45;
+        }
+
+        const dist = 190 + (count % 3) * 35;
+        const nx = parentNode.x + Math.cos(baseAngle) * dist;
+        const ny = parentNode.y + Math.sin(baseAngle) * dist;
+
+        addNode(parentNode.id, clean, nx, ny, parentNode.isRoot ? null : parentNode.theme);
+        showToast(`💡 [${parentNode.text}] ➔ "${clean}" 가지 뻗기!`);
+      }
+    }
+
+    function delNode(id) {
+      const del = new Set([id]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        nodes.forEach(n => {
+          if (del.has(n.parentId) && !del.has(n.id)) {
+            del.add(n.id);
+            changed = true;
+          }
+        });
+      }
+      nodes = nodes.filter(n => !del.has(n.id));
+      render();
+      drawLines();
+      broadcastBranchList();
+    }
+
+    function render() {
+      const box = document.getElementById('nodes-box');
+      box.innerHTML = '';
+      nodes.forEach(n => {
+        const el = document.createElement('div');
+        el.className = 'node' + (n.isRoot ? ' root' : '');
+        el.id = 'dom_' + n.id;
+        el.style.left = n.x + 'px';
+        el.style.top = n.y + 'px';
+
+        const scaleLevel = Math.min((n.count || 1) - 1, 5);
+        const fontSz = (n.isRoot ? 28 : 22) + (scaleLevel * 3);
+        const padX = (n.isRoot ? 36 : 24) + (scaleLevel * 4);
+        const padY = (n.isRoot ? 18 : 12) + (scaleLevel * 2);
+
+        el.style.padding = `${padY}px ${padX}px`;
+
+        if (!n.isRoot && n.theme) {
+          el.style.backgroundColor = n.theme.fill;
+          el.style.borderColor = n.theme.border;
+        }
+
+        if (n.count && n.count > 1) {
+          const b = document.createElement('div');
+          b.className = 'node-badge';
+          b.textContent = '×' + n.count;
+          el.appendChild(b);
+        }
+
+        const inp = document.createElement('div');
+        inp.className = 'node-input';
+        inp.contentEditable = true;
+        inp.textContent = n.text;
+        inp.style.fontSize = fontSz + 'px';
+        if (!n.isRoot && n.theme) inp.style.color = n.theme.text;
+        inp.addEventListener('input', () => { 
+          n.text = inp.innerText;
+          broadcastBranchList();
+        });
+        inp.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+        });
+        el.appendChild(inp);
+
+        const btnAdd = document.createElement('div');
+        btnAdd.className = 'btn-add';
+        btnAdd.textContent = '+';
+        btnAdd.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          addNode(n.id, '새 생각');
+        });
+        el.appendChild(btnAdd);
+
+        if (!n.isRoot) {
+          const btnDel = document.createElement('div');
+          btnDel.className = 'btn-del';
+          btnDel.textContent = '✕';
+          btnDel.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            delNode(n.id);
+          });
+          el.appendChild(btnDel);
+        }
+
+        bindDrag(el, n);
+        box.appendChild(el);
+      });
+    }
+
+    function bindDrag(el, n) {
+      let sx, sy, ox, oy, dragging = false;
+      el.addEventListener('pointerdown', (e) => {
+        if (isPenMode || e.target.contentEditable === 'true') return;
+        dragging = true;
+        sx = e.clientX;
+        sy = e.clientY;
+        ox = n.x;
+        oy = n.y;
+        el.setPointerCapture(e.pointerId);
+      });
+      el.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        n.x = ox + (e.clientX - sx) / zoomScale;
+        n.y = oy + (e.clientY - sy) / zoomScale;
+        el.style.left = n.x + 'px';
+        el.style.top = n.y + 'px';
+        drawLines();
+      });
+      const endDrag = (e) => {
+        if (dragging) {
+          dragging = false;
+          try { el.releasePointerCapture(e.pointerId); } catch(err){}
+        }
+      };
+      el.addEventListener('pointerup', endDrag);
+      el.addEventListener('pointercancel', endDrag);
+    }
+
+    function changeTopic() {
+      const r = nodes.find(n => n.isRoot);
+      const val = prompt('새로운 중심 생각을 적어주세요:', r ? r.text : '');
+      if (val !== null && val.trim() !== '') {
+        if (r) { r.text = val.trim(); render(); drawLines(); broadcastBranchList(); }
+        else { initMap(val.trim()); }
+      }
+    }
+
+    function savePNG() {
+      const name = prompt('저장할 파일 이름을 정해주세요:', '우리들의_마인드맵') || '마인드맵';
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      nodes.forEach(n => {
+        minX = Math.min(minX, n.x - 120);
+        maxX = Math.max(maxX, n.x + 120);
+        minY = Math.min(minY, n.y - 60);
+        maxY = Math.max(maxY, n.y + 60);
+      });
+      const pad = 60;
+      const cX = Math.max(0, minX - pad);
+      const cY = Math.max(0, minY - pad);
+      const cW = (maxX - minX) + pad * 2;
+      const cH = (maxY - minY) + pad * 2;
+
+      const oc = document.createElement('canvas');
+      oc.width = cW * 2;
+      oc.height = cH * 2;
+      const octx = oc.getContext('2d');
+      octx.scale(2, 2);
+      octx.fillStyle = '#FFFFFF';
+      octx.fillRect(0, 0, cW, cH);
+
+      nodes.forEach(n => {
+        if (n.parentId) {
+          const p = nodes.find(x => x.id === n.parentId);
+          if (p) {
+            const dx = n.x - p.x;
+            const dy = n.y - p.y;
+            octx.beginPath();
+            octx.moveTo(p.x - cX, p.y - cY);
+            octx.bezierCurveTo(
+              p.x + dx * 0.45 - cX, p.y + dy * 0.05 - cY,
+              p.x + dx * 0.55 - cX, n.y - dy * 0.05 - cY,
+              n.x - cX, n.y - cY
+            );
+            octx.strokeStyle = n.theme ? n.theme.border : '#94A3B8';
+            octx.lineWidth = 7;
+            octx.lineCap = 'round';
+            octx.stroke();
+          }
+        }
+      });
+      nodes.forEach(n => {
+        const d = document.getElementById('dom_' + n.id);
+        const w = d ? d.offsetWidth : 140;
+        const h = d ? d.offsetHeight : 50;
+        const scaleLevel = Math.min((n.count || 1) - 1, 5);
+        const fontSz = (n.isRoot ? 28 : 22) + (scaleLevel * 3);
+
+        octx.beginPath();
+        octx.roundRect(n.x - cX - w/2, n.y - cY - h/2, w, h, 28);
+        octx.fillStyle = n.isRoot ? '#FEFCBF' : (n.theme ? n.theme.fill : '#FFFFFF');
+        octx.fill();
+        octx.lineWidth = n.isRoot ? 4.5 : 3.5;
+        octx.strokeStyle = n.isRoot ? '#DD6B20' : (n.theme ? n.theme.border : '#94A3B8');
+        octx.stroke();
+        octx.fillStyle = n.isRoot ? '#7B341E' : (n.theme ? n.theme.text : '#2D3748');
+        octx.font = `${fontSz}px Jua`;
+        octx.textAlign = 'center';
+        octx.textBaseline = 'middle';
+        octx.fillText(n.text + (n.count > 1 ? ` (×${n.count})` : ''), n.x - cX, n.y - cY);
+      });
+      octx.drawImage(cvs, cX, cY, cW, cH, 0, 0, cW, cH);
+
+      const a = document.createElement('a');
+      a.download = name + '.png';
+      a.href = oc.toDataURL('image/png');
+      a.click();
+    }
+
+    // ==========================================
+    // 실시간 동기화
+    // ==========================================
+    const urlParams = new URLSearchParams(window.location.search);
+    const hostRoomId = urlParams.get('room');
+
+    let peer = null;
+    let conn = null;
+    let activeConnections = [];
+    let studentSelectedParentId = 'root';
+
+    function getBranchListPayload() {
+      return nodes.map(n => ({
+        id: n.id,
+        text: n.text,
+        isRoot: !!n.isRoot
+      }));
+    }
+
+    function broadcastBranchList() {
+      if (hostRoomId) return;
+      const list = getBranchListPayload();
+      activeConnections.forEach(c => {
+        if (c.open) c.send({ type: 'BRANCH_LIST', branches: list });
+      });
+    }
+
+    function setupNetworking() {
+      if (typeof Peer === 'undefined') return;
+
+      if (hostRoomId) {
+        document.getElementById('main-header').style.display = 'none';
+        document.getElementById('workspace').style.display = 'none';
+        document.getElementById('pen-bar').style.display = 'none';
+        document.getElementById('q-wrap').style.display = 'none';
+        document.getElementById('student-view').style.display = 'flex';
+
+        try {
+          peer = new Peer();
+          peer.on('open', () => {
+            conn = peer.connect(hostRoomId);
+            conn.on('open', () => {
+              document.getElementById('st-status-msg').textContent = '✅ 연결되었습니다! 가지를 고르고 생각을 적어주세요.';
+              conn.send({ type: 'REQUEST_BRANCHES' });
+            });
+            conn.on('data', (data) => {
+              if (data && data.type === 'BRANCH_LIST') {
+                renderStudentBranchChips(data.branches);
+              }
+            });
+          });
+        } catch(e) {
+          console.error(e);
+        }
+
+        document.getElementById('st-word-input').addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') sendStudentWord();
+        });
+
+      } else {
+        const pinCode = Math.floor(100000 + Math.random() * 900000).toString();
+        generatedRoomId = 'mindmap' + pinCode;
+        
+        try {
+          peer = new Peer(generatedRoomId);
+          peer.on('open', (id) => {
+            generatedRoomId = id;
+            document.getElementById('pin-display').textContent = pinCode;
+            const joinUrl = window.location.origin + window.location.pathname + '?room=' + id;
+            
+            const box = document.getElementById('qrcode-canvas-box');
+            box.innerHTML = `<img src="https://quickchart.io/qr?text=${encodeURIComponent(joinUrl)}&size=200&ecLevel=H" alt="접속 QR" style="width:200px; height:200px;" onerror="this.style.display='none'">`;
+          });
+
+          peer.on('connection', (c) => {
+            activeConnections.push(c);
+            c.on('open', () => {
+              c.send({ type: 'BRANCH_LIST', branches: getBranchListPayload() });
+            });
+            c.on('data', (data) => {
+              if (data.type === 'REQUEST_BRANCHES') {
+                c.send({ type: 'BRANCH_LIST', branches: getBranchListPayload() });
+              } else if (data.type === 'SUBMIT_WORD') {
+                handleIncomingWord(data.parentId, data.word);
+              }
+            });
+            c.on('close', () => {
+              activeConnections = activeConnections.filter(x => x !== c);
+            });
+          });
+        } catch(e) {
+          console.error(e);
+        }
+      }
+    }
+
+    function renderStudentBranchChips(branches) {
+      const box = document.getElementById('st-branch-list');
+      box.innerHTML = '';
+      if (!branches || branches.length === 0) return;
+
+      const rootItem = branches.find(b => b.isRoot);
+      if (rootItem) {
+        const chip = document.createElement('div');
+        chip.className = 'branch-chip full-width';
+        chip.textContent = `🌟 [중심] ${rootItem.text}`;
+        if (studentSelectedParentId === rootItem.id || !studentSelectedParentId) {
+          studentSelectedParentId = rootItem.id;
+          chip.classList.add('selected');
+        }
+        chip.addEventListener('click', () => {
+          document.querySelectorAll('.branch-chip').forEach(c => c.classList.remove('selected'));
+          chip.classList.add('selected');
+          studentSelectedParentId = rootItem.id;
+        });
+        box.appendChild(chip);
+      }
+
+      branches.filter(b => !b.isRoot).forEach((b) => {
+        const chip = document.createElement('div');
+        chip.className = 'branch-chip';
+        chip.textContent = `🌿 ${b.text}`;
+        
+        if (studentSelectedParentId === b.id) {
+          chip.classList.add('selected');
+        }
+
+        chip.addEventListener('click', () => {
+          document.querySelectorAll('.branch-chip').forEach(c => c.classList.remove('selected'));
+          chip.classList.add('selected');
+          studentSelectedParentId = b.id;
+        });
+
+        box.appendChild(chip);
+      });
+
+      const newBranchChip = document.createElement('div');
+      newBranchChip.className = 'branch-chip full-width';
+      newBranchChip.style.borderStyle = 'dashed';
+      newBranchChip.style.borderColor = '#DD6B20';
+      newBranchChip.style.color = '#DD6B20';
+      newBranchChip.textContent = '➕ 새로운 가지로 뻗기';
+      if (studentSelectedParentId === 'NEW_ROOT') {
+        newBranchChip.classList.add('selected');
+      }
+      newBranchChip.addEventListener('click', () => {
+        document.querySelectorAll('.branch-chip').forEach(c => c.classList.remove('selected'));
+        newBranchChip.classList.add('selected');
+        studentSelectedParentId = 'NEW_ROOT';
+      });
+      box.appendChild(newBranchChip);
+    }
+
+    function sendStudentWord() {
+      const inp = document.getElementById('st-word-input');
+      const val = inp.value.trim();
+      if (!val) {
+        alert('단어를 적어주세요!');
+        return;
+      }
+      if (conn && conn.open) {
+        conn.send({
+          type: 'SUBMIT_WORD',
+          parentId: studentSelectedParentId || 'root',
+          word: val
+        });
+        inp.value = '';
+        alert(`🚀 "${val}" 생각이 마인드맵으로 날아갔어요!`);
+      } else {
+        alert('선생님 화면과 연결 중입니다. 잠시 후 다시 눌러주세요.');
+      }
+    }
+
+    // 💡 방 생성 여부를 generatedRoomId 또는 화면의 방 번호로 즉각 확인하여 100% 복사 보장
+    function copyStudentLink() {
+      const pinText = document.getElementById('pin-display').textContent.trim();
+      const roomIdToUse = generatedRoomId || (pinText !== '------' ? 'mindmap' + pinText : '');
+
+      if (!roomIdToUse) {
+        alert('아직 접속 방이 생성 중입니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+
+      const joinUrl = window.location.origin + window.location.pathname + '?room=' + roomIdToUse;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(joinUrl).then(() => {
+          alert('📋 학생 참여 웹 링크가 복사되었습니다!\n학생들에게 링크를 전달해 주세요.');
+        }).catch(() => {
+          prompt('아래 링크를 복사해 학생들에게 전달하세요:', joinUrl);
+        });
+      } else {
+        prompt('아래 링크를 복사해 학생들에게 전달하세요:', joinUrl);
+      }
+    }
+
+    function openQRModal() {
+      document.getElementById('qr-modal').classList.add('open');
+    }
+    function closeQRModal() {
+      document.getElementById('qr-modal').classList.remove('open');
+    }
+
+    window.onload = () => {
+      try {
+        cvs.width = 4000;
+        cvs.height = 3000;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        svgElem.setAttribute('width', '4000');
+        svgElem.setAttribute('height', '3000');
+        svgElem.setAttribute('viewBox', '0 0 4000 3000');
+
+        if (!hostRoomId) {
+          initMap('우리 지역 랜드마크');
+        }
+      } catch(err) {
+        console.error('Canvas/DOM 마운트 오류:', err);
+      }
+
+      setTimeout(setupNetworking, 100);
+    };
+  </script>
+</body>
+</html>
