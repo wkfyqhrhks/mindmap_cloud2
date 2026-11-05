@@ -27,7 +27,7 @@
       position: fixed;
     }
 
-    /* 1. 슬림 헤더 (PC에서는 양끝 균형 배치, 좁은 화면에서는 가로 스크롤) */
+    /* 1. 슬림 헤더 */
     header {
       position: absolute;
       top: 0;
@@ -38,7 +38,7 @@
       border-bottom: 2.5px solid #E2E8F0;
       display: flex;
       align-items: center;
-      justify-content: space-between; /* 넓은 화면에서 좌-중-우 균형 분배 */
+      justify-content: space-between;
       padding: 0 20px;
       gap: 16px;
       z-index: 100;
@@ -49,13 +49,8 @@
       touch-action: pan-x;
       white-space: nowrap;
     }
-    header::-webkit-scrollbar {
-      height: 4px;
-    }
-    header::-webkit-scrollbar-thumb {
-      background: #CBD5E1;
-      border-radius: 4px;
-    }
+    header::-webkit-scrollbar { height: 4px; }
+    header::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
 
     .h-left, .h-center, .h-right {
       display: flex;
@@ -283,7 +278,10 @@
       cursor: grab;
       pointer-events: auto;
       transform: translate(-50%, -50%);
-      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      transition: left 0.25s ease-out, top 0.25s ease-out, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .node.dragging {
+      transition: none; /* 드래그 중에는 딜레이 없이 즉시 추종 */
     }
     .node.root {
       padding: 18px 36px;
@@ -611,9 +609,7 @@
       transition: all 0.15s ease;
       touch-action: manipulation;
     }
-    .branch-chip.full-width {
-      flex: 1 1 100%;
-    }
+    .branch-chip.full-width { flex: 1 1 100%; }
     .branch-chip.selected {
       background: #FEFCBF;
       border-color: #DD6B20;
@@ -654,7 +650,7 @@
 </head>
 <body>
 
-  <!-- 메인 보드 헤더: 좌-중-우 균등 정렬 및 가로 스크롤 호환 -->
+  <!-- 메인 보드 헤더 -->
   <header id="main-header">
     <div class="h-left">
       <div class="app-title">🌱 생각 쑥쑥 마인드맵</div>
@@ -780,7 +776,7 @@
         this.arcTo(x + w, y, x + w, y + h, r);
         this.arcTo(x + w, y + h, x, y + h, r);
         this.arcTo(x, y + h, x, y, r);
-        this.arcTo(x, y, x + w, y, r);
+        this.arcTo(x, y + w, y, r);
         this.closePath();
         return this;
       };
@@ -1034,6 +1030,97 @@
     }, { passive: false });
 
     // ==========================================
+    // 💡 충돌 방지 및 안전 거리 유지 알고리즘 (Force-Directed)
+    // ==========================================
+    function resolveCollisions(skipId = null) {
+      const minGapX = 220; // 가로 최소 안전 거리
+      const minGapY = 110; // 세로 최소 안전 거리
+      let shifted = false;
+
+      // 5회 반복 완화로 겹침 해소
+      for (let iter = 0; iter < 5; iter++) {
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const a = nodes[i];
+            const b = nodes[j];
+
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const absX = Math.abs(dx);
+            const absY = Math.abs(dy);
+
+            if (absX < minGapX && absY < minGapY) {
+              shifted = true;
+              const overlapX = (minGapX - absX) * 0.5;
+              const overlapY = (minGapY - absY) * 0.5;
+              const signX = dx >= 0 ? 1 : -1;
+              const signY = dy >= 0 ? 1 : -1;
+
+              // 드래그 중인 노드는 밀려나지 않도록 고정
+              if (a.id !== skipId && !a.isRoot) {
+                a.x -= signX * overlapX;
+                a.y -= signY * overlapY;
+              }
+              if (b.id !== skipId && !b.isRoot) {
+                b.x += signX * overlapX;
+                b.y += signY * overlapY;
+              }
+            }
+          }
+        }
+      }
+
+      if (shifted) {
+        // DOM 좌표 동기화
+        nodes.forEach(n => {
+          const el = document.getElementById('dom_' + n.id);
+          if (el) {
+            el.style.left = n.x + 'px';
+            el.style.top = n.y + 'px';
+          }
+        });
+      }
+    }
+
+    // 부모 주변에서 가장 여유 있는 최적 각도 및 거리 찾기
+    function findOptimalSpawnPosition(parentNode) {
+      const siblings = nodes.filter(n => n.parentId === parentNode.id);
+      const isRoot = parentNode.isRoot;
+      const count = siblings.length;
+
+      let targetAngle = 0;
+      let radius = isRoot ? 240 : 210;
+
+      if (count === 0) {
+        if (isRoot) {
+          targetAngle = -Math.PI / 4; // 중심의 첫 자식은 우상단으로 깔끔하게
+        } else {
+          // 부모가 뻗어나간 진행 각도를 유지
+          targetAngle = Math.atan2(parentNode.y - 1500, parentNode.x - 2000);
+        }
+      } else {
+        if (isRoot) {
+          // 중심 노드 주위: 황금각 비율을 이용해 사방으로 고르게 분산
+          targetAngle = (count * 1.4) % (Math.PI * 2);
+          radius += (count % 3) * 35;
+        } else {
+          // 가지 노드 주위: 부모 각도를 중심으로 부채꼴 펴기
+          const baseAngle = Math.atan2(parentNode.y - 1500, parentNode.x - 2000);
+          const spread = 0.55;
+          const altSign = (count % 2 === 1) ? 1 : -1;
+          const step = Math.ceil(count / 2);
+          targetAngle = baseAngle + altSign * step * spread;
+          radius += (step % 2) * 30;
+        }
+      }
+
+      let spawnX = parentNode.x + Math.cos(targetAngle) * radius;
+      let spawnY = parentNode.y + Math.sin(targetAngle) * radius;
+
+      return { x: spawnX, y: spawnY };
+    }
+
+    // ==========================================
     // 마인드맵 로직
     // ==========================================
     function drawLines() {
@@ -1077,16 +1164,26 @@
       const p = nodes.find(n => n.id === pId);
       if (!p) return;
       const id = 'n_' + Date.now() + '_' + Math.floor(Math.random() * 100);
-      const ang = Math.random() * Math.PI * 2;
-      const x = px !== undefined ? px : p.x + Math.cos(ang) * 190;
-      const y = py !== undefined ? py : p.y + Math.sin(ang) * 190;
+      
+      let x = px;
+      let y = py;
+
+      if (x === undefined || y === undefined) {
+        const optimal = findOptimalSpawnPosition(p);
+        x = optimal.x;
+        y = optimal.y;
+      }
+
       const t = thm || (p.isRoot ? themes[nodes.filter(n => n.parentId === 'root').length % themes.length] : p.theme);
       const node = { id, parentId: pId, text: text || '새로운 생각', x, y, theme: t, isRoot: false, count: 1 };
       nodes.push(node);
-      render();
       
+      // 💡 노드 배치 직후 충돌 검사 실행
+      resolveCollisions();
+      
+      render();
       drawLines();
-      setTimeout(drawLines, 16);
+      setTimeout(drawLines, 20);
 
       broadcastBranchList();
       return node;
@@ -1109,24 +1206,12 @@
       if (existing) {
         existing.count = (existing.count || 1) + 1;
         showToast(`🎉 [${parentNode.text}]에 "${clean}" 생각이 또 나왔어요! (×${existing.count})`);
+        resolveCollisions();
         render();
         drawLines();
       } else {
-        const siblings = nodes.filter(n => n.parentId === parentNode.id);
-        const count = siblings.length;
-        
-        let baseAngle = Math.atan2(parentNode.y - 1500, parentNode.x - 2000);
-        if (parentNode.isRoot) {
-          baseAngle = count * 1.15;
-        } else {
-          baseAngle = baseAngle + (count - 1) * 0.45;
-        }
-
-        const dist = 190 + (count % 3) * 35;
-        const nx = parentNode.x + Math.cos(baseAngle) * dist;
-        const ny = parentNode.y + Math.sin(baseAngle) * dist;
-
-        addNode(parentNode.id, clean, nx, ny, parentNode.isRoot ? null : parentNode.theme);
+        const optimal = findOptimalSpawnPosition(parentNode);
+        addNode(parentNode.id, clean, optimal.x, optimal.y, parentNode.isRoot ? null : parentNode.theme);
         showToast(`💡 [${parentNode.text}] ➔ "${clean}" 가지 뻗기!`);
       }
     }
@@ -1223,6 +1308,7 @@
       el.addEventListener('pointerdown', (e) => {
         if (isPenMode || e.target.contentEditable === 'true') return;
         dragging = true;
+        el.classList.add('dragging');
         sx = e.clientX;
         sy = e.clientY;
         ox = n.x;
@@ -1235,12 +1321,18 @@
         n.y = oy + (e.clientY - sy) / zoomScale;
         el.style.left = n.x + 'px';
         el.style.top = n.y + 'px';
+        
+        // 드래그 중인 노드를 피해 주변 노드들 자동 반발 밀어내기
+        resolveCollisions(n.id);
         drawLines();
       });
       const endDrag = (e) => {
         if (dragging) {
           dragging = false;
+          el.classList.remove('dragging');
           try { el.releasePointerCapture(e.pointerId); } catch(err){}
+          resolveCollisions();
+          drawLines();
         }
       };
       el.addEventListener('pointerup', endDrag);
@@ -1549,7 +1641,6 @@
       setTimeout(setupNetworking, 100);
     };
 
-    // 창 크기 변경 시 중앙 위치 자동 정렬 보정
     window.onresize = () => {
       if (!hostRoomId) {
         resetZ();
